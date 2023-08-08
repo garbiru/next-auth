@@ -3,7 +3,9 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 
 const LoginButton = () => {
+	// This gets the session on the client side
 	const { data: session } = useSession();
+
 	if (session) {
 		return (
 			<>

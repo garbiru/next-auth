@@ -17,4 +17,24 @@ export const options: NextAuthOptions = {
 		strategy: "jwt",
 	},
 	secret: process.env.NEXTAUTH_SECRET!,
+	callbacks: {
+		session: ({ session, token }) => {
+			return {
+				...session,
+				user: {
+					...session.user,
+					id: token.id,
+				},
+			};
+		},
+		jwt: ({ token, user }) => {
+			if (user)
+				return {
+					...token,
+					id: user.id,
+				};
+
+			return token;
+		},
+	},
 };
