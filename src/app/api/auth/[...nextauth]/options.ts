@@ -1,16 +1,48 @@
 import GoogleProvider from "next-auth/providers/google";
-import type { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { getServerSession, type NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { db } from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 export const options: NextAuthOptions = {
-	adapter: PrismaAdapter(prisma) as any,
+	adapter: PrismaAdapter(db) as any,
 	providers: [
 		GoogleProvider({
 			clientId: process.env.GOOGLE_ID!,
 			clientSecret: process.env.GOOGLE_SECRET!,
+		}),
+		CredentialsProvider({
+			name: "Credentials",
+			credentials: {
+				email: { label: "Email", type: "text", placeholder: "email" },
+				password: { label: "Password", type: "password" },
+			},
+			async authorize(credentials, req) {
+				const { email, password }: any = credentials;
+
+				try {
+					const user = await db.user.findUnique({
+						where: {
+							email: email,
+						},
+					});
+
+					if (!user) {
+						return null;
+					}
+
+					const isValid = await bcrypt.compare(password, user.password!);
+
+					if (!isValid) {
+						return null;
+					}
+
+					return user as any;
+				} catch (error) {
+					console.log(error);
+				}
+			},
 		}),
 	],
 	session: {
@@ -19,6 +51,8 @@ export const options: NextAuthOptions = {
 	secret: process.env.NEXTAUTH_SECRET!,
 	callbacks: {
 		session: ({ session, token }) => {
+			console.log("ses token", token);
+
 			return {
 				...session,
 				user: {
@@ -27,14 +61,22 @@ export const options: NextAuthOptions = {
 				},
 			};
 		},
-		jwt: ({ token, user }) => {
-			if (user)
+		jwt: async ({ token, user }) => {
+			console.log("JWT token", token);
+
+			if (user) {
 				return {
-					...token,
 					id: user.id,
 				};
+			}
 
 			return token;
 		},
 	},
+	pages: {
+		signIn: "/auth/signin",
+	},
 };
+
+// This is a easier way to get the session
+export const getAuthSession = () => getServerSession(options);
