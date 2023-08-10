@@ -4,6 +4,7 @@ import { getServerSession, type NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import colors from "colors/safe";
 
 export const options: NextAuthOptions = {
 	adapter: PrismaAdapter(db) as any,
@@ -51,22 +52,26 @@ export const options: NextAuthOptions = {
 	secret: process.env.NEXTAUTH_SECRET!,
 	callbacks: {
 		session: ({ session, token }) => {
-			console.log("ses token", token);
+			console.log(colors.red("ses token"), token);
 
 			return {
 				...session,
 				user: {
 					...session.user,
 					id: token.id,
+					role: token.role,
 				},
+
 			};
 		},
 		jwt: async ({ token, user }) => {
-			console.log("JWT token", token);
+			// The first time this is called, the user comes with all the properties from the database, so we don't need to do anything
+			console.log(colors.yellow("JWT user"), user);
 
 			if (user) {
 				return {
 					id: user.id,
+					role: user.role,
 				};
 			}
 
